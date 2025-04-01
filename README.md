@@ -1,84 +1,165 @@
-# Save Statistics
+# save-statistics
 
-Una librería TypeScript que valida texto y procesa información usando APIs separadas.
+Una librería simple y eficiente para gestionar el envío de textos junto con UUID a APIs. Ideal para aplicaciones que necesitan realizar seguimiento de estadísticas o eventos con identificadores únicos.
 
 ## Instalación
 
 ```bash
 npm install save-statistics
-# o
-yarn add save-statistics
-```
-
-## Uso
-
-```typescript
-import { saveStatistics, configureToken, clearToken } from 'save-statistics';
-
-// Configurar el token de autenticación
-configureToken('tu-token-aqui');
-
-// Guardar el registro enviando el texto a la API
-try {
-    const result = await saveStatistics('texto a guardar'); // retorna Promise<boolean>
-    console.log('Resultado:', result);
-} catch (error) {
-    console.error('Error:', error.message);
-}
-
-// Limpiar la configuración cuando sea necesario
-clearToken();
 ```
 
 ## Características
 
-- Validación a través de API externa
-- Procesamiento en segundo plano
-- Manejo de errores robusto
-- Tipado completo con TypeScript
-- Utilidad de API reutilizable
-- Sistema de autenticación centralizado
+- 🔒 Almacenamiento seguro de UUID para identificación
+- 📨 Envío de texto junto con UUID a endpoints API
+- ⚛️ Compatible con React y otras librerías/frameworks
+- 🔄 Manejo de promesas y errores robusto
+- 📝 Completamente tipada con TypeScript
 
-## Flujo de Proceso
+## Uso
 
-1. **Configuración**: Se debe configurar un token de autenticación usando `configureToken()`
-2. **Guardar Registro**: El texto se envía a la API para validación y procesamiento
-3. **Resultado**: Retorna true si la validación es exitosa, false en caso contrario
-4. **Limpieza**: Se puede limpiar la configuración con `clearToken()`
+### Configuración básica
+
+```typescript
+import { setUUID, sendText } from 'save-statistics';
+
+// Configura el UUID al iniciar tu aplicación
+setUUID('123e4567-e89b-12d3-a456-426614174000');
+
+// Envía texto a la API (función asíncrona)
+async function enviarMensaje() {
+  try {
+    await sendText('Mensaje de prueba');
+    console.log('Mensaje enviado correctamente');
+  } catch (error) {
+    console.error('Error al enviar el mensaje:', error);
+  }
+}
+
+enviarMensaje();
+```
+
+### Uso con React
+
+```tsx
+import React, { useState, useEffect } from 'react';
+import { setUUID, sendText } from 'save-statistics';
+
+const MessageForm: React.FC = () => {
+  const [message, setMessage] = useState('');
+  const [status, setStatus] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Configura el UUID al montar el componente
+  useEffect(() => {
+    // En una aplicación real, este UUID podría venir de:
+    // - Un servicio de autenticación
+    // - Generarse con una librería como uuid
+    // - Recuperarse del localStorage
+    setUUID('123e4567-e89b-12d3-a456-426614174000');
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!message.trim()) return;
+    
+    setIsLoading(true);
+    setStatus('');
+    
+    try {
+      await sendText(message);
+      setStatus('✅ Mensaje enviado correctamente');
+      setMessage(''); // Limpiar el campo después de enviar
+    } catch (error) {
+      if (error instanceof Error) {
+        setStatus(`❌ Error: ${error.message}`);
+      } else {
+        setStatus('❌ Ocurrió un error desconocido');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="message-form">
+      <h2>Enviar mensaje</h2>
+      
+      {status && <div className={status.includes('Error') ? 'error' : 'success'}>{status}</div>}
+      
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label htmlFor="message">Mensaje:</label>
+          <textarea
+            id="message"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            disabled={isLoading}
+            placeholder="Escribe tu mensaje aquí..."
+            rows={4}
+          />
+        </div>
+        
+        <button 
+          type="submit" 
+          disabled={isLoading || !message.trim()}
+        >
+          {isLoading ? 'Enviando...' : 'Enviar'}
+        </button>
+      </form>
+    </div>
+  );
+};
+
+export default MessageForm;
+```
 
 ## API
 
-### `configureToken(token: string): void`
+### `setUUID(uuid: string): void`
 
-- **Parámetros:**
-  - `token`: Token de autenticación para las APIs
-- **Descripción:** Configura el token de autenticación para todas las llamadas a API
-- **Lanza:** Error si el token está vacío
+Guarda un UUID para uso posterior en las llamadas a la API.
 
-### `clearToken(): void`
+- **Parámetros**:
+  - `uuid`: String - El UUID a guardar
+- **Comportamiento**: Almacena el UUID en memoria para usarlo en llamadas posteriores
+- **Ejemplo**:
+  ```typescript
+  setUUID('123e4567-e89b-12d3-a456-426614174000');
+  ```
 
-- **Descripción:** Limpia la configuración de autenticación actual
+### `sendText(text: string): Promise<void>`
 
-### `saveStatistics(text: string): Promise<boolean>`
+Envía texto junto con el UUID guardado a una API.
 
-- **Parámetros:**
-  - `text`: Texto a guardar
-- **Retorna:** `Promise<boolean>`
-  - `true`: Si la validación es exitosa
-  - `false`: Si la validación falla o hay un error
-- **Lanza:** Error si no hay token configurado
+- **Parámetros**:
+  - `text`: String - El texto a enviar
+- **Retorna**: Promise que se resuelve sin valor en caso de éxito
+- **Lanza**: Error si no hay UUID configurado o si la API responde con error
+- **Ejemplo**:
+  ```typescript
+  try {
+    await sendText('Hola mundo');
+    console.log('Texto enviado correctamente');
+  } catch (error) {
+    console.error('Falló el envío:', error);
+  }
+  ```
 
-## Desarrollo
+## Flujo de trabajo típico
 
-```bash
-# Instalar dependencias
-npm install
+1. Al inicializar la aplicación, llama a `setUUID()` con el identificador único
+2. Cuando necesites enviar un texto, usa `sendText()` 
+3. Maneja posibles errores con bloques try/catch
 
-# Ejecutar tests
-npm test
+## Configuración avanzada
 
-# Construir la librería
-npm run build
+Para configurar una URL de API personalizada, puedes modificar el archivo `index.ts` antes de construir la librería:
+
+```typescript
+// En src/index.ts
+const API_URL = 'https://tu-api-personalizada.com/endpoint';
 ```
 
 ## Licencia
